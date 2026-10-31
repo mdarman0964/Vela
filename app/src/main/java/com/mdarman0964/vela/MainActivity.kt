@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -46,7 +45,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Instant
 
 private val Background = Color(0xFF080D13)
 private val Panel = Color(0xFF101A24)
@@ -73,7 +71,8 @@ class MainActivity : ComponentActivity() {
                 var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
-                var pointSize by remember { mutableStateOf<Double?>(null) }\n                var candleLimit by remember { mutableStateOf<Int?>(null) }
+                var pointSize by remember { mutableStateOf<Double?>(null) }
+                var candleLimit by remember { mutableStateOf<Int?>(null) }
                 val strategySignal = remember(candles, selected, pointSize) {
                     val point = pointSize
                     if (candles.size >= 201 && point != null) {
