@@ -43,6 +43,23 @@ class ExnessReadOnlyClient(
         return ExnessAccessPoint(access.trimEnd('/'), json.optString("account_id", account))
     }
 
+    fun loadCandleRequestLimit(accessPoint: String): Int {
+        val limits = signedGet(accessPoint, "/v1/configuration/accounts/${accountId()}/limits")
+            .optJSONObject("limits")?.optJSONObject("rest")?.optJSONArray("methods")
+            ?: throw IllegalStateException("Exness did not return REST request limits.")
+        for (index in 0 until limits.length()) {
+            val item = limits.getJSONObject(index)
+            val path = item.optString("path")
+            val method = item.optString("http_method")
+            if (method == "GET" && path.endsWith("/market-data/accounts/{account_id}/candles")) {
+                val max = item.optJSONObject("limits")?.optInt("max_candles_per_request", 0) ?: 0
+                require(max > 0) { "Exness did not provide max_candles_per_request for candle history." }
+                return minOf(max, 1000)
+            }
+        }
+        throw IllegalStateException("Candle history limit is missing from Exness API limits.")
+    }
+
     fun loadPointSize(accessPoint: String): Double {
         val instrument = encodeQuery(credentials.instrument.trim())
         val path = "/v1/configuration/accounts/${accountId()}/instruments/$instrument/conditions"
