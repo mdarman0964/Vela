@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                 var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
-                var pointSize by remember { mutableStateOf<Double?>(null) }
+                var pointSize by remember { mutableStateOf<Double?>(null) }\n                var candleLimit by remember { mutableStateOf<Int?>(null) }
                 val strategySignal = remember(candles, selected, pointSize) {
                     val point = pointSize
                     if (candles.size >= 201 && point != null) {
@@ -84,14 +84,14 @@ class MainActivity : ComponentActivity() {
                     } else null
                 }
 
-                LaunchedEffect(selected, activeCredentials, accessPoint) {
+                LaunchedEffect(selected, activeCredentials, accessPoint, candleLimit) {
                     val credentials = activeCredentials
                     val endpoint = accessPoint
-                    if (credentials != null && endpoint != null) {
+                    if (credentials != null && endpoint != null && candleLimit != null && candleLimit!! > 0) {
                         while (isActive) {
                             try {
                                 val loaded = withContext(Dispatchers.IO) {
-                                    ExnessReadOnlyClient(credentials).loadCandles(endpoint, selected, count = 300)
+                                    ExnessReadOnlyClient(credentials).loadCandles(endpoint, selected, count = minOf(300, candleLimit!!))
                                 }
                                 candles = loaded
                                 status = if (loaded.isEmpty()) "Connected · no candles returned for this interval" else "Connected · ${loaded.size} candles · refreshed"
