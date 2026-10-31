@@ -59,7 +59,8 @@ class ExnessCredentialVault(context: Context) {
     }
 
     fun clear() {
-        preferences.edit().remove(CREDENTIALS).commit()
+        check(preferences.edit().remove(CREDENTIALS).commit()) { "Unable to clear encrypted credentials" }
+        KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(KEY_ALIAS) }
     }
 
     private fun getOrCreateKey(): SecretKey {
