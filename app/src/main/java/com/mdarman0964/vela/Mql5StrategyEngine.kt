@@ -97,15 +97,20 @@ object Mql5StrategyEngine {
         return candles.takeLast(period).map { it.close }.average()
     }
 
+    /** Wilder-smoothed ATR, matching the standard MT5 iATR indicator rather than a simple TR average. */
     fun atr(candles: List<MarketCandle>, period: Int = 14): Double? {
         require(period > 0)
         if (candles.size < period + 1) return null
-        val window = candles.takeLast(period + 1)
-        return (1 until window.size).map { i ->
-            val current = window[i]
-            val previousClose = window[i - 1].close
-            max(current.high - current.low, max(abs(current.high - previousClose), abs(current.low - previousClose)))
-        }.average()
+        fun trueRange(index: Int): Double {
+            val current = candles[index]
+            val previousClose = candles[index - 1].close
+            return max(current.high - current.low, max(abs(current.high - previousClose), abs(current.low - previousClose)))
+        }
+        var value = (1..period).map(::trueRange).average()
+        for (index in (period + 1) until candles.size) {
+            value = (value * (period - 1) + trueRange(index)) / period
+        }
+        return value
     }
 
     /** Evaluate on the newly opened bar; profile uses the previous closed bars, like MQL5 shift 1..N. */
