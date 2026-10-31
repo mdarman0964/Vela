@@ -137,7 +137,7 @@ object Mql5StrategyEngine {
         val trendUp = !useSmaFilter || mid > sma!!
         val trendDown = !useSmaFilter || mid < sma!!
         val buy = trendUp && (nearVal || (nearPoc && mid >= profile.poc))
-        val sell = trendDown && (nearVah || (nearPoc && mid <= profile.poc))
+        val sell = !buy && trendDown && (nearVah || (nearPoc && mid <= profile.poc))
         val reason = when {
             buy -> "BUY setup: bullish SMA alignment and VAL/POC proximity"
             sell -> "SELL setup: bearish SMA alignment and VAH/POC proximity"
