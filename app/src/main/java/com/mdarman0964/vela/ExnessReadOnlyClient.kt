@@ -10,6 +10,7 @@ import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Instant
@@ -114,7 +115,7 @@ class ExnessReadOnlyClient(
         onTick: (ExnessTick) -> Unit,
         onError: (String) -> Unit,
     ): WebSocket {
-        require(accessPoint.startsWith("https://")) { "Only HTTPS Exness access points are allowed." }
+        validateExnessBase(accessPoint)
         val path = "/v1/server-events/accounts/${accountId()}/ws/ticks"
         val apiKey = credentials.apiKey.trim()
         val timestamp = System.currentTimeMillis()
@@ -178,7 +179,7 @@ class ExnessReadOnlyClient(
     }
 
     private fun signedGet(base: String, pathWithQuery: String): JSONObject {
-        require(base.startsWith("https://")) { "Only HTTPS Exness gateways are allowed." }
+        validateExnessBase(base)
         require(pathWithQuery.startsWith("/") && !pathWithQuery.startsWith("//"))
         val apiKey = credentials.apiKey.trim()
         require(apiKey.isNotEmpty())
@@ -217,6 +218,16 @@ class ExnessReadOnlyClient(
         }
     }
 
+    private fun validateExnessBase(base: String) {
+        val uri = runCatching { URI(base) }.getOrElse { throw IllegalArgumentException("Invalid Exness gateway URL.") }
+        val host = uri.host?.lowercase().orEmpty()
+        require(uri.scheme.equals("https", ignoreCase = true) &&
+            (host == "exness.com" || host.endsWith(".exness.com")) &&
+            uri.userInfo == null && uri.rawQuery == null && uri.rawFragment == null &&
+            (uri.port == -1 || uri.port == 443)) {
+            "Gateway must be an official HTTPS Exness host."
+        }
+    }
     private fun accountId(): String {
         val id = credentials.accountId.trim()
         require(Regex("^[0-9]{1,20}$").matches(id)) { "Account ID must contain 1 to 20 digits." }
