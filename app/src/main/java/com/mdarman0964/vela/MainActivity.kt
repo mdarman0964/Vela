@@ -26,6 +26,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,8 @@ class MainActivity : ComponentActivity() {
                 var activeCredentials by remember { mutableStateOf<ExnessCredentialVault.Credentials?>(null) }
                 var accessPoint by remember { mutableStateOf<String?>(null) }
                 var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
+                var latestTick by remember { mutableStateOf<ExnessTick?>(null) }
+                var tickStatus by remember { mutableStateOf("Waiting for live tick stream") }
                 var loadedTimeframe by remember { mutableStateOf<Timeframe?>(null) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
@@ -76,6 +79,28 @@ class MainActivity : ComponentActivity() {
                 var candleLimit by remember { mutableStateOf<Int?>(null) }
                 var strategySignal by remember { mutableStateOf<StrategySignal?>(null) }
                 var lastSignalKey by remember { mutableStateOf<String?>(null) }
+
+                DisposableEffect(activeCredentials, accessPoint) {
+                    val credentials = activeCredentials
+                    val endpoint = accessPoint
+                    val socket = if (credentials != null && endpoint != null) {
+                        ExnessReadOnlyClient(credentials).openTickStream(
+                            endpoint,
+                            onTick = { tick ->
+                                runOnUiThread {
+                                    latestTick = tick
+                                    tickStatus = "Live tick received"
+                                }
+                            },
+                            onError = { error ->
+                                runOnUiThread { tickStatus = error }
+                            },
+                        )
+                    } else null
+                    onDispose {
+                        socket?.close(1000, "VELA screen closed")
+                    }
+                }
 
                 LaunchedEffect(candles, selected, pointSize) {
                     val point = pointSize
@@ -217,9 +242,14 @@ class MainActivity : ComponentActivity() {
                                 Text(if (candles.isNotEmpty()) "EXNESS DATA" else "NO FEED", color = if (candles.isNotEmpty()) Neon else Muted, fontSize = 9.sp)
                             }
                             if (candles.isNotEmpty()) {
-                                Text("Bid close ${"%.2f".format(candles.last().close)}  ·  ${candles.size} candles", color = Neon, fontSize = 12.sp)
-                                CandleChart(candles, Modifier.fillMaxWidth().height(230.dp))
-                                Text("Candle history refreshes every 15 seconds; this is not a tick-stream connection.", color = Muted, fontSize = 10.sp)
+                                val tick = latestTick
+                                if (tick != null) {
+                                    Text("LIVE  BID ${"%.2f".format(tick.bid)}  /  ASK ${"%.2f".format(tick.ask)}", color = Neon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                } else {
+                                    Text("Waiting for live bid/ask ticks · ${tickStatus.take(80)}", color = Muted, fontSize = 11.sp)
+                                }
+                                Text("History ${candles.size} candles · refreshes every 15 seconds", color = Muted, fontSize = 10.sp)
+                                CandleChart(candles, tick, Modifier.fillMaxWidth().height(230.dp))
                             } else {
                                 Text("No market prices are fabricated. Connect your Exness API credentials to load real bid/ask candles.", color = Muted, fontSize = 13.sp)
                                 Spacer(Modifier.height(120.dp))
@@ -254,7 +284,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun CandleChart(candles: List<ExnessCandle>, modifier: Modifier = Modifier) {
+private fun CandleChart(candles: List<ExnessCandle>, latestTick: ExnessTick?, modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF0A1119))) {
         if (candles.isEmpty()) return@Canvas
         val visible = candles.takeLast(100)
@@ -268,6 +298,11 @@ private fun CandleChart(candles: List<ExnessCandle>, modifier: Modifier = Modifi
             val yy = size.height * line / 4f
             drawLine(Color(0xFF1C2A36), androidx.compose.ui.geometry.Offset(0f, yy),
                 androidx.compose.ui.geometry.Offset(size.width, yy), strokeWidth = 1f)
+        }
+        if (latestTick != null && latestTick.bid in minPrice..maxPrice) {
+            val liveY = y(latestTick.bid)
+            drawLine(Color(0xFFFFD166), androidx.compose.ui.geometry.Offset(0f, liveY),
+                androidx.compose.ui.geometry.Offset(size.width, liveY), strokeWidth = 1.5f)
         }
         visible.forEachIndexed { index, candle ->
             val x = (index + 0.5f) * cell
