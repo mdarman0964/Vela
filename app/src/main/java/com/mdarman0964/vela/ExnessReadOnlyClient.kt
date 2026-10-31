@@ -3,6 +3,9 @@ package com.mdarman0964.vela
 import android.util.Base64
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okhttp3.Response
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.json.JSONObject
@@ -22,7 +25,7 @@ data class ExnessCandle(
     val askClose: Double,
 )
 
-data class ExnessAccessPoint(val accessPoint: String, val accountId: String)
+data class ExnessAccessPoint(val accessPoint: String, val accountId: String)\ndata class ExnessTick(val instrument: String, val bid: Double, val ask: Double, val timeMillis: Long)
 
 /** Native, signed, read-only Exness Trader API client. This class deliberately has no order methods. */
 class ExnessReadOnlyClient(
@@ -102,6 +105,71 @@ class ExnessReadOnlyClient(
                 }
             }
         }.sortedBy { it.timeMillis }
+    }
+
+    /** Opens the official Exness real-time bid/ask tick stream using a signed GET handshake. */
+    fun openTickStream(
+        accessPoint: String,
+        onTick: (ExnessTick) -> Unit,
+        onError: (String) -> Unit,
+    ): WebSocket {
+        require(accessPoint.startsWith("https://")) { "Only HTTPS Exness access points are allowed." }
+        val path = "/v1/server-events/accounts/${accountId()}/ws/ticks"
+        val apiKey = credentials.apiKey.trim()
+        val timestamp = System.currentTimeMillis()
+        val bodyHash = base64Url(MessageDigest.getInstance("SHA-256").digest(ByteArray(0)))
+        val payload = JSONObject()
+            .put("api_key", apiKey)
+            .put("idempotency_key", "")
+            .put("timestamp", timestamp)
+            .put("sign_version", 1)
+            .put("method", "GET")
+            .put("path", path)
+            .put("body_hash", bodyHash)
+            .toString()
+            .toByteArray(StandardCharsets.UTF_8)
+        val signature = sign(payload, credentials.privateKey)
+        val request = Request.Builder()
+            .url(accessPoint.replaceFirst("https://", "wss://").trimEnd('/') + path)
+            .header("Accept", "application/json")
+            .header("EXN-API-KEY", apiKey)
+            .header("EXN-IDEMPOTENCY-KEY", "")
+            .header("EXN-TIMESTAMP", timestamp.toString())
+            .header("EXN-SIGN-VERSION", "1")
+            .header("EXN-DATA", base64Url(payload))
+            .header("EXN-SIGN", signature)
+            .build()
+        return http.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                val subscription = JSONObject()
+                    .put("id", "vela-xauusd-ticks")
+                    .put("subscribe", JSONObject()
+                        .put("event", "ticks")
+                        .put("instruments", org.json.JSONArray().put(credentials.instrument)))
+                webSocket.send(subscription.toString())
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val json = JSONObject(text)
+                    val instrument = json.optString("instrument")
+                    val bid = json.optDouble("bid", Double.NaN)
+                    val ask = json.optDouble("ask", Double.NaN)
+                    val timestampText = json.optString("timestamp")
+                    if (instrument == credentials.instrument && bid.isFinite() && ask.isFinite() && ask >= bid) {
+                        onTick(ExnessTick(instrument, bid, ask, Instant.parse(timestampText).toEpochMilli()))
+                    } else if (json.has("error_message")) {
+                        onError(json.optString("error_message"))
+                    }
+                } catch (error: Exception) {
+                    onError(error.message?.take(120) ?: "Invalid Exness tick message")
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                onError(t.message?.take(140) ?: "Exness tick stream disconnected")
+            }
+        })
     }
 
     private fun signedGet(base: String, pathWithQuery: String): JSONObject {
