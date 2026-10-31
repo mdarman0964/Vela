@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -334,7 +333,7 @@ private fun CandleChart(candles: List<ExnessCandle>, latestTick: ExnessTick?, mo
             val top = minOf(y(candle.open), y(candle.close))
             val bottom = maxOf(y(candle.open), y(candle.close))
             drawRect(tint, androidx.compose.ui.geometry.Offset(x - bodyWidth / 2f, top),
-                androidx.compose.ui.Size(bodyWidth, (bottom - top).coerceAtLeast(2f)))
+                androidx.compose.ui.geometry.Size(bodyWidth, (bottom - top).coerceAtLeast(2f)))
         }
     }
 }
