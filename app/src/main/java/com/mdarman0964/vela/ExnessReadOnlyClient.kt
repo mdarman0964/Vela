@@ -167,6 +167,10 @@ class ExnessReadOnlyClient(
                 }
             }
 
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                onError("Exness tick stream closed ($code)")
+            }
+
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 onError(t.message?.take(140) ?: "Exness tick stream disconnected")
             }
