@@ -25,7 +25,8 @@ data class ExnessCandle(
     val askClose: Double,
 )
 
-data class ExnessAccessPoint(val accessPoint: String, val accountId: String)\ndata class ExnessTick(val instrument: String, val bid: Double, val ask: Double, val timeMillis: Long)
+data class ExnessAccessPoint(val accessPoint: String, val accountId: String)
+data class ExnessTick(val instrument: String, val bid: Double, val ask: Double, val timeMillis: Long)
 
 /** Native, signed, read-only Exness Trader API client. This class deliberately has no order methods. */
 class ExnessReadOnlyClient(
