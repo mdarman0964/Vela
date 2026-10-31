@@ -155,6 +155,39 @@ object Mql5StrategyEngine {
         val spreadPoints = (spread / point) * defaults.spreadSafetyMultiplier
         return max(max(atrPoints, spreadPoints), defaults.trailMinimumPoints) * point
     }
+
+    /** Pure port of the EA's tick-level trailing-stop ratchet; null means no update. */
+    fun nextTrailingStop(
+        side: Side,
+        openPrice: Double,
+        currentStop: Double,
+        currentBid: Double,
+        currentAsk: Double,
+        atr: Double,
+        point: Double,
+        defaults: StrategyDefaults = StrategyDefaults(),
+    ): Double? {
+        require(openPrice > 0.0 && currentBid > 0.0 && currentAsk >= currentBid && point > 0.0)
+        if (atr <= 0.0) return null
+        val startDistance = atr * defaults.trailStartAtrMultiplier
+        val distance = trailingDistance(atr, currentAsk - currentBid, point, defaults)
+        return when (side) {
+            Side.BUY -> {
+                if (currentBid - openPrice < startDistance) null
+                else {
+                    val next = currentBid - distance
+                    if ((currentStop == 0.0 || next > currentStop) && next < currentBid) next else null
+                }
+            }
+            Side.SELL -> {
+                if (openPrice - currentAsk < startDistance) null
+                else {
+                    val next = currentAsk + distance
+                    if ((currentStop == 0.0 || next < currentStop) && next > currentAsk) next else null
+                }
+            }
+        }
+    }
 }
 
 enum class Side { BUY, SELL }
