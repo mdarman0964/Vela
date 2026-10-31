@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
                                     ExnessReadOnlyClient(credentials).loadCandles(endpoint, selected, count = minOf(300, candleLimit!!))
                                 }
                                 candles = loaded
+                                loadedTimeframe = selected
                                 status = if (loaded.isEmpty()) "Connected · no candles returned for this interval" else "Connected · ${loaded.size} candles · refreshed"
                             } catch (error: Exception) {
                                 status = error.message?.take(140) ?: "Exness candle request failed"
