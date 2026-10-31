@@ -68,7 +68,7 @@ class MainActivity : ComponentActivity() {
                 var privateKey by remember { mutableStateOf(restored?.privateKey.orEmpty()) }
                 var activeCredentials by remember { mutableStateOf<ExnessCredentialVault.Credentials?>(null) }
                 var accessPoint by remember { mutableStateOf<String?>(null) }
-                var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
+                var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }\n                var loadedTimeframe by remember { mutableStateOf<Timeframe?>(null) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
                 var pointSize by remember { mutableStateOf<Double?>(null) }
@@ -79,7 +79,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(candles, selected, pointSize) {
                     val point = pointSize
                     val latest = candles.lastOrNull()
-                    if (candles.size >= 201 && point != null && latest != null) {
+                    if (loadedTimeframe == selected && candles.size >= 201 && point != null && latest != null) {
                         val key = "${selected.apiValue}-${latest.timeMillis}"
                         if (key != lastSignalKey) {
                             val series = candles.map { candle ->
