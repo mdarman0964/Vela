@@ -73,14 +73,27 @@ class MainActivity : ComponentActivity() {
                 var busy by remember { mutableStateOf(false) }
                 var pointSize by remember { mutableStateOf<Double?>(null) }
                 var candleLimit by remember { mutableStateOf<Int?>(null) }
-                val strategySignal = remember(candles, selected, pointSize) {
+                var strategySignal by remember { mutableStateOf<StrategySignal?>(null) }
+                var lastSignalKey by remember { mutableStateOf<String?>(null) }
+
+                LaunchedEffect(candles, selected, pointSize) {
                     val point = pointSize
-                    if (candles.size >= 201 && point != null) {
-                        val series = candles.map { candle ->
-                            MarketCandle(candle.timeMillis, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.close, candle.askClose)
+                    val latest = candles.lastOrNull()
+                    if (candles.size >= 201 && point != null && latest != null) {
+                        val key = "${selected.apiValue}-${latest.timeMillis}"
+                        if (key != lastSignalKey) {
+                            val series = candles.map { candle ->
+                                MarketCandle(candle.timeMillis, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.close, candle.askClose)
+                            }
+                            strategySignal = withContext(Dispatchers.Default) {
+                                Mql5StrategyEngine.evaluate(selected, series, point)
+                            }
+                            lastSignalKey = key
                         }
-                        Mql5StrategyEngine.evaluate(selected, series, point)
-                    } else null
+                    } else {
+                        strategySignal = null
+                        lastSignalKey = null
+                    }
                 }
 
                 LaunchedEffect(selected, activeCredentials, accessPoint, candleLimit) {
@@ -229,7 +242,7 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 Text("Strategy waiting for at least 201 real candles and Exness instrument precision.", color = Muted, fontSize = 10.sp)
                             }
-                            Text("Strategy calculations run on the selected candle timeframe. No broker orders are sent.", color = Muted, fontSize = 10.sp)
+                            Text("Entry checks run once per new selected-timeframe candle, like MQL5 OnTick bar gating. No broker orders are sent.", color = Muted, fontSize = 10.sp)
                         }
                         Text("Native Android · HTTPS only · No external backend · Candle refresh 15s", color = Muted, fontSize = 10.sp)
                     }
