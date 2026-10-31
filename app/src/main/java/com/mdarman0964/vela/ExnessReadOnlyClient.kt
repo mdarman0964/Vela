@@ -69,7 +69,7 @@ class ExnessReadOnlyClient(
         val path = "/v1/configuration/accounts/${accountId()}/instruments/$instrument/conditions"
         val digits = signedGet(accessPoint, path).optInt("point_digits", -1)
         require(digits in 0..12) { "Exness did not return valid point_digits for ${credentials.instrument}." }
-        return Math.pow(10.0, -digits)
+        return Math.pow(10.0, -digits.toDouble())
     }
 
     fun loadCandles(
