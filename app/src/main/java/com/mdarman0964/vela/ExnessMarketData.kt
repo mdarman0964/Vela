@@ -22,7 +22,7 @@ object ExnessMarketData {
         val encodedFrom = encode(fromIso8601)
         return "/v1/market-data/accounts/$accountId/candles" +
             "?instrument=$encodedInstrument" +
-            "&price_type=bid" +
+            "&price_type=both" +
             "&timeframe=${timeframe.apiValue}" +
             "&from=$encodedFrom" +
             "&count=$count"
