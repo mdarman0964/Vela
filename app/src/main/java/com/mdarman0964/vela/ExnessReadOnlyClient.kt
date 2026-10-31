@@ -63,13 +63,17 @@ class ExnessReadOnlyClient(
             for (i in 0 until rows.length()) {
                 val row = rows.getJSONObject(i)
                 val time = Instant.parse(row.getString("time")).toEpochMilli()
-                val open = row.getDouble("open")
-                val high = row.getDouble("high")
-                val low = row.getDouble("low")
-                val close = row.getDouble("close")
+                val bid = row.optJSONObject("bid")
+                val ask = row.optJSONObject("ask")
+                val open = bid?.optDouble("open") ?: row.optDouble("open", Double.NaN)
+                val high = bid?.optDouble("high") ?: row.optDouble("high", Double.NaN)
+                val low = bid?.optDouble("low") ?: row.optDouble("low", Double.NaN)
+                val close = bid?.optDouble("close") ?: row.optDouble("close", Double.NaN)
+                val askClose = ask?.optDouble("close") ?: close
                 val volume = row.optDouble("volume", 0.0).toLong()
-                if (high >= maxOf(open, close) && low <= minOf(open, close) && volume >= 0) {
-                    add(ExnessCandle(time, open, high, low, close, volume))
+                if (open.isFinite() && high >= maxOf(open, close) && low <= minOf(open, close) &&
+                    close.isFinite() && askClose.isFinite() && volume >= 0) {
+                    add(ExnessCandle(time, open, high, low, close, volume, askClose))
                 }
             }
         }.sortedBy { it.timeMillis }
