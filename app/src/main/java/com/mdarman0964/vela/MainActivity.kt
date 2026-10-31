@@ -73,6 +73,16 @@ class MainActivity : ComponentActivity() {
                 var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
+                var pointSize by remember { mutableStateOf<Double?>(null) }
+                val strategySignal = remember(candles, selected, pointSize) {
+                    val point = pointSize
+                    if (candles.size >= 201 && point != null) {
+                        val series = candles.map { candle ->
+                            MarketCandle(candle.timeMillis, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.close, candle.askClose)
+                        }
+                        Mql5StrategyEngine.evaluate(selected, series, point)
+                    } else null
+                }
 
                 LaunchedEffect(selected, activeCredentials, accessPoint) {
                     val credentials = activeCredentials
@@ -151,11 +161,15 @@ class MainActivity : ComponentActivity() {
                                                 val creds = ExnessCredentialVault.Credentials(gateway.trim(), accountId.trim(), apiKey.trim(), privateKey.trim())
                                                 withContext(Dispatchers.IO) {
                                                     vault.save(creds)
-                                                    ExnessReadOnlyClient(creds).discoverAccessPoint()
-                                                }.also { found ->
+                                                    val client = ExnessReadOnlyClient(creds)
+                                                    val found = client.discoverAccessPoint()
+                                                    val point = client.loadPointSize(found.accessPoint)
+                                                    found to point
+                                                }.also { (found, point) ->
                                                     accessPoint = found.accessPoint
+                                                    pointSize = point
                                                     activeCredentials = creds
-                                                    status = "Access point found · loading ${selected.apiValue} candles"
+                                                    status = "Access point verified · instrument point size $point · loading ${selected.apiValue} candles"
                                                 }
                                             } catch (error: Exception) {
                                                 status = error.message?.take(140) ?: "Connection failed"
@@ -170,6 +184,7 @@ class MainActivity : ComponentActivity() {
                                     vault.clear()
                                     activeCredentials = null
                                     accessPoint = null
+                                    pointSize = null
                                     candles = emptyList()
                                     gateway = ""; accountId = ""; apiKey = ""; privateKey = ""
                                     status = "Saved credentials cleared"
@@ -205,6 +220,16 @@ class MainActivity : ComponentActivity() {
                             Text("STRATEGY ENGINE · OBSERVE ONLY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Text("Volume Profile · SMA 50 · ATR 14", color = Color.White, fontSize = 14.sp)
                             Text("Live order execution: OFF", color = Neon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            if (strategySignal != null) {
+                                Text("Signal: ${if (strategySignal.buy) "BUY" else if (strategySignal.sell) "SELL" else "WAIT"}", color = if (strategySignal.buy || strategySignal.sell) Neon else Muted, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                strategySignal.profile?.let { profile ->
+                                    Text("POC ${"%.2f".format(profile.poc)} · VAH ${"%.2f".format(profile.vah)} · VAL ${"%.2f".format(profile.valPrice)}", color = Color.White, fontSize = 11.sp)
+                                }
+                                Text("SMA ${strategySignal.sma?.let { "%.2f".format(it) } ?: "—"} · ATR ${strategySignal.atr?.let { "%.2f".format(it) } ?: "—"}", color = Muted, fontSize = 11.sp)
+                                Text(strategySignal.reason, color = Muted, fontSize = 10.sp)
+                            } else {
+                                Text("Strategy waiting for at least 201 real candles and Exness instrument precision.", color = Muted, fontSize = 10.sp)
+                            }
                             Text("Strategy calculations run on the selected candle timeframe. No broker orders are sent.", color = Muted, fontSize = 10.sp)
                         }
                         Text("Native Android · HTTPS only · No external backend · Candle refresh 15s", color = Muted, fontSize = 10.sp)
