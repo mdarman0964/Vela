@@ -9,7 +9,6 @@ import org.json.JSONObject
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.security.SecureRandom
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
@@ -20,6 +19,7 @@ data class ExnessCandle(
     val low: Double,
     val close: Double,
     val volume: Long,
+    val askClose: Double,
 )
 
 data class ExnessAccessPoint(val accessPoint: String, val accountId: String)
