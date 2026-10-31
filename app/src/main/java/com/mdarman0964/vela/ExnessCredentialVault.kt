@@ -46,8 +46,8 @@ class ExnessCredentialVault(context: Context) {
             val buffer = ByteBuffer.wrap(packed)
             val ivLength = buffer.int
             require(ivLength in 12..16 && buffer.remaining() > ivLength)
-            val iv = ByteArray(ivLength).also(buffer::get)
-            val encrypted = ByteArray(buffer.remaining()).also(buffer::get)
+            val iv = ByteArray(ivLength).also { buffer.get(it) }
+            val encrypted = ByteArray(buffer.remaining()).also { buffer.get(it) }
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(128, iv))
             val fields = cipher.doFinal(encrypted).toString(Charsets.UTF_8).split("\u001F")
