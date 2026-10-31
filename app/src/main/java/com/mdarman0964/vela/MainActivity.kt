@@ -283,13 +283,14 @@ class MainActivity : ComponentActivity() {
                             Text("STRATEGY ENGINE · OBSERVE ONLY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Text("Volume Profile · SMA 50 · ATR 14", color = Color.White, fontSize = 14.sp)
                             Text("Live order execution: OFF", color = Neon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            if (strategySignal != null) {
-                                Text("Signal: ${if (strategySignal.buy) "BUY" else if (strategySignal.sell) "SELL" else "WAIT"}", color = if (strategySignal.buy || strategySignal.sell) Neon else Muted, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                                strategySignal.profile?.let { profile ->
+                            val signal = strategySignal
+                            if (signal != null) {
+                                Text("Signal: ${if (signal.buy) "BUY" else if (signal.sell) "SELL" else "WAIT"}", color = if (signal.buy || signal.sell) Neon else Muted, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                signal.profile?.let { profile ->
                                     Text("POC ${"%.2f".format(profile.poc)} · VAH ${"%.2f".format(profile.vah)} · VAL ${"%.2f".format(profile.valPrice)}", color = Color.White, fontSize = 11.sp)
                                 }
-                                Text("SMA ${strategySignal.sma?.let { "%.2f".format(it) } ?: "—"} · ATR ${strategySignal.atr?.let { "%.2f".format(it) } ?: "—"}", color = Muted, fontSize = 11.sp)
-                                Text(strategySignal.reason, color = Muted, fontSize = 10.sp)
+                                Text("SMA ${signal.sma?.let { "%.2f".format(it) } ?: "—"} · ATR ${signal.atr?.let { "%.2f".format(it) } ?: "—"}", color = Muted, fontSize = 11.sp)
+                                Text(signal.reason, color = Muted, fontSize = 10.sp)
                             } else {
                                 Text("Strategy waiting for at least 201 real candles and Exness instrument precision.", color = Muted, fontSize = 10.sp)
                             }
