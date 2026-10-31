@@ -158,7 +158,7 @@ object Mql5StrategyEngine {
         require(atr >= 0.0 && spread >= 0.0 && point > 0.0)
         val atrPoints = (atr / point) * defaults.trailAtrMultiplier
         val spreadPoints = (spread / point) * defaults.spreadSafetyMultiplier
-        return max(max(atrPoints, spreadPoints), defaults.trailMinimumPoints) * point
+        return max(max(atrPoints, spreadPoints), defaults.trailMinimumPoints.toDouble()) * point
     }
 
     /** Pure port of the EA's tick-level trailing-stop ratchet; null means no update. */
