@@ -226,8 +226,14 @@ class MainActivity : ComponentActivity() {
                                     activeCredentials = null
                                     accessPoint = null
                                     pointSize = null
+                                    candleLimit = null
                                     candles = emptyList()
+                                    loadedTimeframe = null
+                                    latestTick = null
+                                    strategySignal = null
+                                    lastSignalKey = null
                                     gateway = ""; accountId = ""; apiKey = ""; privateKey = ""
+                                    tickStatus = "Tick stream stopped"
                                     status = "Saved credentials cleared"
                                 }) { Text("CLEAR", color = Red) }
                             }
