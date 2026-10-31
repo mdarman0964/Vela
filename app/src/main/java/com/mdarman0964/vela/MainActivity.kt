@@ -3,6 +3,7 @@ package com.mdarman0964.vela
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -13,39 +14,89 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
 
 private val Background = Color(0xFF080D13)
 private val Panel = Color(0xFF101A24)
 private val Neon = Color(0xFF4DE6C1)
 private val Muted = Color(0xFF91A4B7)
+private val Red = Color(0xFFFF6B78)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val timeframePreferences = TimeframePreferences(applicationContext)
+        val preferences = TimeframePreferences(applicationContext)
+        val vault = ExnessCredentialVault(applicationContext)
+        val restored = vault.load()
         setContent {
             MaterialTheme {
-                val selected by timeframePreferences.timeframe.collectAsState(initial = Timeframe.default)
+                val selected by preferences.timeframe.collectAsState(initial = Timeframe.default)
                 val scope = rememberCoroutineScope()
+                var gateway by remember { mutableStateOf(restored?.gateway.orEmpty()) }
+                var accountId by remember { mutableStateOf(restored?.accountId.orEmpty()) }
+                var apiKey by remember { mutableStateOf(restored?.apiKey.orEmpty()) }
+                var privateKey by remember { mutableStateOf(restored?.privateKey.orEmpty()) }
+                var activeCredentials by remember { mutableStateOf<ExnessCredentialVault.Credentials?>(null) }
+                var accessPoint by remember { mutableStateOf<String?>(null) }
+                var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
+                var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
+                var busy by remember { mutableStateOf(false) }
+
+                LaunchedEffect(selected, activeCredentials, accessPoint) {
+                    val credentials = activeCredentials
+                    val endpoint = accessPoint
+                    if (credentials != null && endpoint != null) {
+                        while (isActive) {
+                            try {
+                                val loaded = withContext(Dispatchers.IO) {
+                                    ExnessReadOnlyClient(credentials).loadCandles(endpoint, selected, count = 300)
+                                }
+                                candles = loaded
+                                status = if (loaded.isEmpty()) "Connected · no candles returned for this interval" else "Connected · ${loaded.size} candles · refreshed"
+                            } catch (error: Exception) {
+                                status = error.message?.take(140) ?: "Exness candle request failed"
+                            }
+                            delay(15_000)
+                        }
+                    }
+                }
+
                 Surface(modifier = Modifier.fillMaxSize(), color = Background) {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(18.dp)
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
@@ -55,20 +106,18 @@ class MainActivity : ComponentActivity() {
                             Text("NATIVE", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                         }
                         Column(
-                            modifier = Modifier.fillMaxWidth()
-                                .background(Panel, RoundedCornerShape(18.dp))
-                                .border(1.dp, Color(0xFF20313F), RoundedCornerShape(18.dp))
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(18.dp))
+                                .border(1.dp, Color(0xFF20313F), RoundedCornerShape(18.dp)).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text("INSTRUMENT", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Text("XAUUSDm", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                             Text("TIMEFRAME", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
                                 Timeframe.entries.forEach { item ->
                                     val active = selected == item
                                     TextButton(
-                                        onClick = { scope.launch { timeframePreferences.setTimeframe(item) } },
+                                        onClick = { scope.launch { preferences.setTimeframe(item) } },
                                         modifier = Modifier.weight(1f)
                                             .background(if (active) Neon.copy(alpha = 0.16f) else Color(0xFF0B121A), RoundedCornerShape(10.dp))
                                             .border(1.dp, if (active) Neon else Color(0xFF263746), RoundedCornerShape(10.dp))
@@ -77,29 +126,121 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
-                            Text("Selected candle interval: ${selected.apiValue}", color = Neon, fontSize = 12.sp)
+                            Text("Selected API interval: ${selected.apiValue}", color = Neon, fontSize = 12.sp)
                         }
+
                         Column(
-                            modifier = Modifier.fillMaxWidth()
-                                .weight(1f)
-                                .background(Panel, RoundedCornerShape(18.dp))
-                                .border(1.dp, Color(0xFF20313F), RoundedCornerShape(18.dp))
-                                .padding(16.dp),
+                            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(18.dp))
+                                .border(1.dp, Color(0xFF20313F), RoundedCornerShape(18.dp)).padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            Text("EXNESS CONNECTION", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
+                            OutlinedTextField(gateway, { gateway = it }, label = { Text("API Gateway URL") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(accountId, { accountId = it }, label = { Text("Account ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(apiKey, { apiKey = it }, label = { Text("API Key ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(privateKey, { privateKey = it }, label = { Text("Ed25519 private key / seed") }, singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    enabled = !busy,
+                                    onClick = {
+                                        scope.launch {
+                                            busy = true
+                                            status = "Saving credentials securely and discovering Exness access point…"
+                                            try {
+                                                val creds = ExnessCredentialVault.Credentials(gateway.trim(), accountId.trim(), apiKey.trim(), privateKey.trim())
+                                                withContext(Dispatchers.IO) {
+                                                    vault.save(creds)
+                                                    ExnessReadOnlyClient(creds).discoverAccessPoint()
+                                                }.also { found ->
+                                                    accessPoint = found.accessPoint
+                                                    activeCredentials = creds
+                                                    status = "Access point found · loading ${selected.apiValue} candles"
+                                                }
+                                            } catch (error: Exception) {
+                                                status = error.message?.take(140) ?: "Connection failed"
+                                            } finally {
+                                                busy = false
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Neon, contentColor = Background)
+                                ) { Text(if (busy) "CONNECTING…" else "CONNECT & LOAD") }
+                                TextButton(onClick = {
+                                    vault.clear()
+                                    activeCredentials = null
+                                    accessPoint = null
+                                    candles = emptyList()
+                                    gateway = ""; accountId = ""; apiKey = ""; privateKey = ""
+                                    status = "Saved credentials cleared"
+                                }) { Text("CLEAR", color = Red) }
+                            }
+                            Text(status, color = if (status.startsWith("Connected")) Neon else Muted, fontSize = 11.sp)
+                            Text("Keys are AES-GCM encrypted with an Android Keystore key. Requests are signed on-device; no VELA server.", color = Muted, fontSize = 10.sp)
+                        }
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(18.dp))
+                                .border(1.dp, Color(0xFF20313F), RoundedCornerShape(18.dp)).padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("MARKET CHART", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("Waiting for Exness connection", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                            Text("The native data request will use the selected ${selected.label} interval.", color = Muted, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text("STRATEGY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("XAUUSDm · ${selected.label}", color = Color.White, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                Text(if (candles.isNotEmpty()) "EXNESS DATA" else "NO FEED", color = if (candles.isNotEmpty()) Neon else Muted, fontSize = 9.sp)
+                            }
+                            if (candles.isNotEmpty()) {
+                                Text("Bid close ${"%.2f".format(candles.last().close)}  ·  ${candles.size} candles", color = Neon, fontSize = 12.sp)
+                                CandleChart(candles, Modifier.fillMaxWidth().height(230.dp))
+                                Text("Candle history refreshes every 15 seconds; this is not a tick-stream connection.", color = Muted, fontSize = 10.sp)
+                            } else {
+                                Text("No market prices are fabricated. Connect your Exness API credentials to load real bid/ask candles.", color = Muted, fontSize = 13.sp)
+                                Spacer(Modifier.height(120.dp))
+                            }
+                        }
+
+                        Column(
+                            modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(18.dp)).padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("STRATEGY ENGINE · OBSERVE ONLY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Text("Volume Profile · SMA 50 · ATR 14", color = Color.White, fontSize = 14.sp)
                             Text("Live order execution: OFF", color = Neon, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Strategy calculations run on the selected candle timeframe. No broker orders are sent.", color = Muted, fontSize = 10.sp)
                         }
-                        Text("No external server · Native Android · Exness data requires internet", color = Muted, fontSize = 11.sp)
+                        Text("Native Android · HTTPS only · No external backend · Candle refresh 15s", color = Muted, fontSize = 10.sp)
                     }
                 }
             }
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun CandleChart(candles: List<ExnessCandle>, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.clip(RoundedCornerShape(10.dp)).background(Color(0xFF0A1119))) {
+        if (candles.isEmpty()) return@Canvas
+        val visible = candles.takeLast(100)
+        val minPrice = visible.minOf { it.low }
+        val maxPrice = visible.maxOf { it.high }
+        val range = (maxPrice - minPrice).takeIf { it > 0.0 } ?: 1.0
+        val cell = size.width / visible.size
+        val bodyWidth = (cell * 0.58f).coerceAtLeast(1.5f)
+        fun y(price: Double) = size.height - (((price - minPrice) / range).toFloat() * size.height)
+        for (line in 1..3) {
+            val yy = size.height * line / 4f
+            drawLine(Color(0xFF1C2A36), androidx.compose.ui.geometry.Offset(0f, yy),
+                androidx.compose.ui.geometry.Offset(size.width, yy), strokeWidth = 1f)
+        }
+        visible.forEachIndexed { index, candle ->
+            val x = (index + 0.5f) * cell
+            val rising = candle.close >= candle.open
+            val tint = if (rising) Neon else Red
+            drawLine(tint, androidx.compose.ui.geometry.Offset(x, y(candle.high)),
+                androidx.compose.ui.geometry.Offset(x, y(candle.low)), strokeWidth = 1.2f)
+            val top = minOf(y(candle.open), y(candle.close))
+            val bottom = maxOf(y(candle.open), y(candle.close))
+            drawRect(tint, androidx.compose.ui.geometry.Offset(x - bodyWidth / 2f, top),
+                androidx.compose.ui.Size(bodyWidth, (bottom - top).coerceAtLeast(2f)))
         }
     }
 }
