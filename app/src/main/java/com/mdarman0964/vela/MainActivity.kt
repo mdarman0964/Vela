@@ -18,16 +18,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 private val Background = Color(0xFF080D13)
 private val Panel = Color(0xFF101A24)
@@ -37,10 +37,11 @@ private val Muted = Color(0xFF91A4B7)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val timeframePreferences = TimeframePreferences(applicationContext)
         setContent {
             MaterialTheme {
-                var timeframeName by rememberSaveable { mutableStateOf(Timeframe.default.name) }
-                val selected = Timeframe.valueOf(timeframeName)
+                val selected by timeframePreferences.timeframe.collectAsState(initial = Timeframe.default)
+                val scope = rememberCoroutineScope()
                 Surface(modifier = Modifier.fillMaxSize(), color = Background) {
                     Column(
                         modifier = Modifier.fillMaxSize().padding(18.dp),
@@ -67,7 +68,7 @@ class MainActivity : ComponentActivity() {
                                 Timeframe.entries.forEach { item ->
                                     val active = selected == item
                                     TextButton(
-                                        onClick = { timeframeName = item.name },
+                                        onClick = { scope.launch { timeframePreferences.setTimeframe(item) } },
                                         modifier = Modifier.weight(1f)
                                             .background(if (active) Neon.copy(alpha = 0.16f) else Color(0xFF0B121A), RoundedCornerShape(10.dp))
                                             .border(1.dp, if (active) Neon else Color(0xFF263746), RoundedCornerShape(10.dp))
@@ -89,7 +90,7 @@ class MainActivity : ComponentActivity() {
                             Text("MARKET CHART", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text("Waiting for Exness connection", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Medium)
-                            Text("The chart will load ${selected.label} candles after a broker connection is configured.", color = Muted, fontSize = 13.sp)
+                            Text("The native data request will use the selected ${selected.label} interval.", color = Muted, fontSize = 13.sp)
                             Spacer(modifier = Modifier.weight(1f))
                             Text("STRATEGY", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
                             Text("Volume Profile · SMA 50 · ATR 14", color = Color.White, fontSize = 14.sp)
