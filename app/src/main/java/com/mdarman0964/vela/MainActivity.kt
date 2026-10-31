@@ -68,7 +68,8 @@ class MainActivity : ComponentActivity() {
                 var privateKey by remember { mutableStateOf(restored?.privateKey.orEmpty()) }
                 var activeCredentials by remember { mutableStateOf<ExnessCredentialVault.Credentials?>(null) }
                 var accessPoint by remember { mutableStateOf<String?>(null) }
-                var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }\n                var loadedTimeframe by remember { mutableStateOf<Timeframe?>(null) }
+                var candles by remember { mutableStateOf<List<ExnessCandle>>(emptyList()) }
+                var loadedTimeframe by remember { mutableStateOf<Timeframe?>(null) }
                 var status by remember { mutableStateOf(if (restored == null) "Credentials not configured" else "Credentials encrypted on this device · Connect to load market data") }
                 var busy by remember { mutableStateOf(false) }
                 var pointSize by remember { mutableStateOf<Double?>(null) }
