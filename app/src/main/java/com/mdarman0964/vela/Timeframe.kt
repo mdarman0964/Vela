@@ -8,7 +8,6 @@ enum class Timeframe(val label: String, val apiValue: String, val durationMillis
 
     companion object {
         val default = M5
-        fun fromApiValue(value: String): Timeframe =
-            entries.firstOrNull { it.apiValue == value } ?: default
+        fun fromApiValue(value: String): Timeframe = entries.firstOrNull { it.apiValue == value } ?: default
     }
 }
