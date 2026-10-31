@@ -1,6 +1,6 @@
 package com.mdarman0964.vela
 
-import android.util.Base64
+import java.util.Base64
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
@@ -228,7 +228,7 @@ class ExnessReadOnlyClient(
         val hex = keyText.replace(Regex("\\s+"), "")
         val seed = if (keyText.contains("BEGIN")) {
             val body = keyText.lines().filterNot { it.startsWith("-----") }.joinToString("")
-            val der = Base64.decode(body, Base64.DEFAULT)
+            val der = Base64.getDecoder().decode(body)
             require(der.size >= 32) { "Invalid PKCS#8 Ed25519 private key." }
             der.copyOfRange(der.size - 32, der.size)
         } else {
@@ -244,7 +244,7 @@ class ExnessReadOnlyClient(
     }
 
     private fun base64Url(bytes: ByteArray): String =
-        Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
     companion object {
         fun encodeQuery(value: String): String =
