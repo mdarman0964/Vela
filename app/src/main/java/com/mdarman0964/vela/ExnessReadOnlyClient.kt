@@ -43,6 +43,14 @@ class ExnessReadOnlyClient(
         return ExnessAccessPoint(access.trimEnd('/'), json.optString("account_id", account))
     }
 
+    fun loadPointSize(accessPoint: String): Double {
+        val instrument = encodeQuery(credentials.instrument.trim())
+        val path = "/v1/configuration/accounts/${accountId()}/instruments/$instrument/conditions"
+        val digits = signedGet(accessPoint, path).optInt("point_digits", -1)
+        require(digits in 0..12) { "Exness did not return valid point_digits for ${credentials.instrument}." }
+        return Math.pow(10.0, -digits)
+    }
+
     fun loadCandles(
         accessPoint: String,
         timeframe: Timeframe,
