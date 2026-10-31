@@ -102,21 +102,32 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(candles, selected, pointSize) {
+                LaunchedEffect(candles, selected, pointSize, latestTick) {
                     val point = pointSize
                     val latest = candles.lastOrNull()
-                    if (loadedTimeframe == selected && candles.size >= 201 && point != null && latest != null) {
+                    val tick = latestTick
+                    val tickBarOpen = tick?.timeMillis?.let { it - (it % selected.durationMillis) }
+                    if (loadedTimeframe == selected && candles.size >= 201 && point != null &&
+                        latest != null && tick != null && latest.timeMillis == tickBarOpen) {
                         val key = "${selected.apiValue}-${latest.timeMillis}"
                         if (key != lastSignalKey) {
                             val series = candles.map { candle ->
                                 MarketCandle(candle.timeMillis, candle.open, candle.high, candle.low, candle.close, candle.volume, candle.close, candle.askClose)
-                            }
+                            }.toMutableList()
+                            val last = series.last()
+                            series[series.lastIndex] = last.copy(
+                                high = maxOf(last.high, tick.bid),
+                                low = minOf(last.low, tick.bid),
+                                close = tick.bid,
+                                bid = tick.bid,
+                                ask = tick.ask,
+                            )
                             strategySignal = withContext(Dispatchers.Default) {
                                 Mql5StrategyEngine.evaluate(selected, series, point)
                             }
                             lastSignalKey = key
                         }
-                    } else {
+                    } else if (loadedTimeframe != selected || candles.size < 201 || point == null) {
                         strategySignal = null
                         lastSignalKey = null
                     }
