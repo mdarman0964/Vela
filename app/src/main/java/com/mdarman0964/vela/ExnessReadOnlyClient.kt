@@ -223,7 +223,7 @@ class ExnessReadOnlyClient(
         return id
     }
 
-    private fun sign(payload: ByteArray, privateKey: String): String {
+    internal fun sign(payload: ByteArray, privateKey: String): String {
         val keyText = privateKey.trim()
         val hex = keyText.replace(Regex("\\s+"), "")
         val seed = if (keyText.contains("BEGIN")) {
