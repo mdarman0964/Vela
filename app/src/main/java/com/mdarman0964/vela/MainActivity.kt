@@ -127,7 +127,7 @@ class MainActivity : ComponentActivity() {
                             }
                             lastSignalKey = key
                         }
-                    } else if (loadedTimeframe != selected || candles.size < 201 || point == null) {
+                    } else {
                         strategySignal = null
                         lastSignalKey = null
                     }
