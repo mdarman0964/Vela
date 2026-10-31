@@ -202,12 +202,15 @@ class MainActivity : ComponentActivity() {
                                                     val client = ExnessReadOnlyClient(creds)
                                                     val found = client.discoverAccessPoint()
                                                     val point = client.loadPointSize(found.accessPoint)
-                                                    found to point
-                                                }.also { (found, point) ->
+                                                    val maxCandles = client.loadCandleRequestLimit(found.accessPoint)
+                                                    Triple(found, point, maxCandles)
+                                                }.also { (found, point, maxCandles) ->
                                                     accessPoint = found.accessPoint
                                                     pointSize = point
+                                                    candleLimit = maxCandles
+                                                    lastSignalKey = null
                                                     activeCredentials = creds
-                                                    status = "Access point verified · instrument point size $point · loading ${selected.apiValue} candles"
+                                                    status = "Access point verified · point $point · candle limit $maxCandles · loading ${selected.apiValue}"
                                                 }
                                             } catch (error: Exception) {
                                                 status = error.message?.take(140) ?: "Connection failed"
