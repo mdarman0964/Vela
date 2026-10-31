@@ -47,7 +47,7 @@ class Mql5StrategyEngineTest {
     }
 
     @Test fun trailingDistanceUsesLargestAtrSpreadOrMinimumFloor() {
-        assertEquals(0.5, Mql5StrategyEngine.trailingDistance(2.0, 0.4, 0.01), 1e-9)
+        assertEquals(0.6, Mql5StrategyEngine.trailingDistance(2.0, 0.4, 0.01), 1e-9)
     }
     @Test fun trailingStopStartsOnlyAfterOneAtrProfitAndNeverMovesBackwards() {
         val defaults = StrategyDefaults()
