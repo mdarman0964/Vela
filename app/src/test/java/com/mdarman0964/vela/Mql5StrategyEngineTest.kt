@@ -49,4 +49,20 @@ class Mql5StrategyEngineTest {
     @Test fun trailingDistanceUsesLargestAtrSpreadOrMinimumFloor() {
         assertEquals(0.5, Mql5StrategyEngine.trailingDistance(2.0, 0.4, 0.01), 1e-9)
     }
+    @Test fun trailingStopStartsOnlyAfterOneAtrProfitAndNeverMovesBackwards() {
+        val defaults = StrategyDefaults()
+        assertNull(Mql5StrategyEngine.nextTrailingStop(Side.BUY, 100.0, 0.0, 100.5, 100.7, 1.0, 0.01, defaults))
+        val first = Mql5StrategyEngine.nextTrailingStop(Side.BUY, 100.0, 0.0, 102.0, 102.2, 1.0, 0.01, defaults)
+        assertNotNull(first)
+        assertNull(Mql5StrategyEngine.nextTrailingStop(Side.BUY, 100.0, first!!, 101.9, 102.1, 1.0, 0.01, defaults))
+    }
+
+    @Test fun sellTrailingStopUsesAskAndTightensDownwards() {
+        val first = Mql5StrategyEngine.nextTrailingStop(Side.SELL, 100.0, 0.0, 97.8, 98.0, 1.0, 0.01)
+        assertNotNull(first)
+        val tighter = Mql5StrategyEngine.nextTrailingStop(Side.SELL, 100.0, first!!, 97.0, 97.2, 1.0, 0.01)
+        assertNotNull(tighter)
+        assertTrue(tighter!! < first)
+    }
+
 }
