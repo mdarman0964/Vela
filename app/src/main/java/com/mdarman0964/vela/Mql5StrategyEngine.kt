@@ -4,6 +4,7 @@ import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.round
 
 /** Read-only Kotlin port of the VolumeProfile_Bounce_Strategy_v3.mq5 calculations. */
 data class MarketCandle(
@@ -149,10 +150,12 @@ object Mql5StrategyEngine {
     fun initialStops(entry: Double, side: Side, point: Double, defaults: StrategyDefaults = StrategyDefaults()): Pair<Double, Double> {
         require(entry > 0.0 && point > 0.0)
         val direction = if (side == Side.BUY) 1.0 else -1.0
-        val sl = entry - direction * defaults.fixedStopLossPoints * point
-        val tp = entry + direction * defaults.fixedTakeProfitPoints * point
+        val sl = normalizePrice(entry - direction * defaults.fixedStopLossPoints * point, point)
+        val tp = normalizePrice(entry + direction * defaults.fixedTakeProfitPoints * point, point)
         return sl to tp
     }
+
+    private fun normalizePrice(price: Double, point: Double): Double = round(price / point) * point
 
     fun trailingDistance(atr: Double, spread: Double, point: Double, defaults: StrategyDefaults = StrategyDefaults()): Double {
         require(atr >= 0.0 && spread >= 0.0 && point > 0.0)
@@ -180,14 +183,14 @@ object Mql5StrategyEngine {
             Side.BUY -> {
                 if (currentBid - openPrice < startDistance) null
                 else {
-                    val next = currentBid - distance
+                    val next = normalizePrice(currentBid - distance, point)
                     if ((currentStop == 0.0 || next > currentStop) && next < currentBid) next else null
                 }
             }
             Side.SELL -> {
                 if (openPrice - currentAsk < startDistance) null
                 else {
-                    val next = currentAsk + distance
+                    val next = normalizePrice(currentAsk + distance, point)
                     if ((currentStop == 0.0 || next < currentStop) && next > currentAsk) next else null
                 }
             }
